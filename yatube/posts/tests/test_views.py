@@ -1,6 +1,6 @@
 from django.test import TestCase, Client, override_settings
 from django.contrib.auth import get_user_model
-from ..models import Post, Group, Follow
+from ..models import Post, Group, Follow, Comment
 from django.urls import reverse
 from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -59,6 +59,61 @@ class PostViewsTests(TestCase):
         super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
+    def test_post_comments_for_auth_client(self):
+        """Комментирование поста авторизированным пользователем."""
+        comments_count = Comment.objects.count()
+        post = Post.objects.create(
+            text="Тестовый текст поста",
+            author=self.author
+        )
+        form_data = {"text": "Тестовый комментарийй"}
+        response = self.author_client.post(
+            reverse(
+                "posts:add_comment",
+                kwargs={"post_id": post.id}
+            ),
+            data=form_data,
+            follow=True
+        )
+        self.assertTrue(
+            Comment.objects.filter(
+                text=form_data["text"],
+                author=self.author,
+                post_id=post.id
+            )
+        )
+        self.assertEqual(
+            Comment.objects.count(), comments_count + 1
+        )
+        self.assertRedirects(
+            response, reverse("posts:post_detail", args={post.id})
+        )
+
+    def test_post_comments_for_guest_client(self):
+        """Комментирование поста неавторизированным пользователем."""
+        comments_count = Comment.objects.count()
+        post = Post.objects.create(
+            text="Тестовый текст поста",
+            author=self.author
+        )
+        form_data = {"text": "Тестовый комментарийй"}
+        response = self.guest_client.post(
+            reverse(
+                "posts:add_comment",
+                kwargs={"post_id": post.id}
+            ),
+            data=form_data,
+            follow=True
+        )
+        self.assertEqual(
+            Comment.objects.count(), comments_count
+        )
+        self.assertRedirects(
+            response, reverse("login") + '?next=' + reverse(
+                "posts:add_comment", kwargs={"post_id": post.id}
+            )
+        )
+
     def test_cache_index(self):
         """Проверка работы кэша на главной странице"""
         post = Post.objects.create(
@@ -96,6 +151,7 @@ class PostViewsTests(TestCase):
                 "post_id": PostViewsTests.post.id
             }): "posts/create_post.html",
             reverse("posts:post_create"): "posts/create_post.html",
+            reverse("posts:follow_index"): "posts/follow.html",
         }
         for name, template in name_template.items():
             with self.subTest(name=name):
@@ -234,6 +290,28 @@ class PostViewsTests(TestCase):
             reverse("posts:follow_index")
         )
         self.assertNotIn(self.post, response.context["page_obj"].object_list)
+
+    def test_follow_author_for_author(self):
+        "Проверка подписки автора на самого себя"
+        follow_count = Follow.objects.count()
+        self.author_client.get(
+            reverse(
+                "posts:profile_follow",
+                kwargs={"username": self.author}
+            )
+        )
+        self.assertEqual(Follow.objects.count(), follow_count)
+
+    def test_follow_guest_for_author(self):
+        """Проверка: неавторизованнный гость не может подписаться"""
+        follow_count = Follow.objects.count()
+        self.guest_client.get(
+            reverse(
+                "posts:profile_follow",
+                kwargs={"username": self.author}
+            )
+        )
+        self.assertEqual(Follow.objects.count(), follow_count)
 
 
 class PaginatorViewsTest(TestCase):

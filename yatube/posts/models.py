@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+set_limit = 15
 
 
 class Post(models.Model):
@@ -35,7 +36,7 @@ class Post(models.Model):
     )
 
     def __str__(self):
-        return self.text[:15]
+        return self.text[:set_limit]
 
     class Meta:
         ordering = ("-pub_date",)
@@ -61,19 +62,24 @@ class Comment(models.Model):
         Post,
         related_name="comments",
         on_delete=models.CASCADE,
+        verbose_name="Пост"
     )
     author = models.ForeignKey(
         User,
         related_name="comments",
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name="Автор комментария"
     )
-    text = models.TextField()
+    text = models.TextField(
+        verbose_name="Текст комментария"
+    )
     created = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
+        verbose_name="Создан"
     )
 
     def __str__(self):
-        return self.text[:15]
+        return self.text[:set_limit]
 
     class Meta:
         verbose_name = "Комментарий"
@@ -84,17 +90,25 @@ class Follow(models.Model):
     user = models.ForeignKey(
         User,
         related_name="follower",
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name="Пользователь"
     )
     author = models.ForeignKey(
         User,
         related_name="following",
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        verbose_name="Автор"
     )
 
     def __str__(self):
         return f"{self.user} подписан на {self.author}"
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "author"],
+                name="user_author",
+            )
+        ]
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"

@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
-from ..models import Post, Group
+from ..models import Post, Group, Comment, Follow
 from http import HTTPStatus
 from django.core.cache import cache
 
@@ -23,6 +23,15 @@ class PostURLTests(TestCase):
             text="Тестовый пост",
             group=cls.group,
         )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user,
+            text="Тестовый комментарий",
+        )
+        cls.follow = Follow.objects.create(
+            user=cls.user,
+            author=cls.author,
+        )
 
     def setUp(self):
         self.guest_client = Client()
@@ -40,6 +49,10 @@ class PostURLTests(TestCase):
             f"/profile/{PostURLTests.user}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/edit/": HTTPStatus.FOUND,
+            f"/posts/{PostURLTests.post.id}/comment/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.user}/follow/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.user}/unfollow/": HTTPStatus.FOUND,
+            "/follow/": HTTPStatus.FOUND,
             "/create/": HTTPStatus.FOUND,
             "/unexisting_page/": HTTPStatus.NOT_FOUND,
         }
@@ -56,6 +69,10 @@ class PostURLTests(TestCase):
             f"/profile/{PostURLTests.user}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/edit/": HTTPStatus.FOUND,
+            f"/posts/{PostURLTests.post.id}/comment/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.author}/follow/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.author}/unfollow/": HTTPStatus.FOUND,
+            "/follow/": HTTPStatus.OK,
             "/create/": HTTPStatus.OK,
             "/unexisting_page/": HTTPStatus.NOT_FOUND,
         }
@@ -72,6 +89,10 @@ class PostURLTests(TestCase):
             f"/profile/{PostURLTests.user}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/": HTTPStatus.OK,
             f"/posts/{PostURLTests.post.id}/edit/": HTTPStatus.OK,
+            f"/posts/{PostURLTests.post.id}/comment/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.author}/follow/": HTTPStatus.FOUND,
+            f"/profile/{PostURLTests.author}/unfollow/": HTTPStatus.NOT_FOUND,
+            "/follow/": HTTPStatus.OK,
             "/create/": HTTPStatus.OK,
             "/unexisting_page/": HTTPStatus.NOT_FOUND,
         }
@@ -88,6 +109,7 @@ class PostURLTests(TestCase):
             f"/profile/{PostURLTests.user}/": "posts/profile.html",
             f"/posts/{PostURLTests.post.id}/": "posts/post_detail.html",
             f"/posts/{PostURLTests.post.id}/edit/": "posts/create_post.html",
+            "/follow/": "posts/follow.html",
             "/create/": "posts/create_post.html",
         }
         for url, template in url_template.items():

@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from ..models import Post, Group
 
 User = get_user_model()
+set_limit = 15
 
 
 class PostModelTest(TestCase):
@@ -24,7 +25,7 @@ class PostModelTest(TestCase):
         """Проверяем, что у модели Post корректно работает __str__."""
         self.assertEqual(
             self.post.__str__(),
-            self.post.text[:15]
+            self.post.text[:set_limit]
         )
 
     def test_group_model_have_correct_object_names(self):
